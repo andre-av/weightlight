@@ -3,20 +3,25 @@ import datetime
 import csv
 
 
+FOUR_WEEKS = 28
+PRIMARY = "primary"
+SECONDARY = "secondary"
+TERTIARY = "tertiary"
 
 
 class ExerciseSet:
-    def __init__(self, name, weight, reps, rir, importance, date_done = datetime.datetime.now()):
+    def __init__(self, name: str, weight: float, reps: int, rir: int, importance: str, date_done: datetime = datetime.datetime.now()):
         self.__name = name
         self.__weight = weight
         self.__reps = reps
         self.__rir = rir # Reps in reserve.
-        self.__importance = importance # 1 for primary, 2 for secondary, 3 for tertiary.
+        # self.__importance = importance # 1 for primary, 2 for secondary, 3 for tertiary.
+        self.__importance = importance # PRIMARY, SECONDARY, or TERTIARY
         self.__date_done = date_done 
 
     @property
     def all_attributes(self):
-        return [self.__name, self.__weight, self.__reps, self.__rir, self.__importance, self.__date_done.strftime("%c")]
+        return [self.__name, self.__weight, self.__reps, self.__rir, self.__importance, self.__date_done.strftime("%d-%b-%Y")]
     @property
     def name(self):
         return self.__name
@@ -34,7 +39,7 @@ class ExerciseSet:
         return self.__importance
     @property
     def date_done(self):
-        return self.__date_done
+        return self.__date_done # NOTE: returns datetime object
 
 class MuscleGroup:
         
@@ -60,16 +65,24 @@ class MuscleGroup:
             sets_attributes.append(set.all_attributes)
         return sets_attributes
     @property
-    def amount_sets_done(self, days = 28): # TODO like this, or kwargs?
+    def amount_sets_done(self, days = FOUR_WEEKS): # TODO like this, or kwargs?
         prim_sum = 0
         sec_sum = 0
         tert_sum = 0
         for set in self.exercise_sets:
             if set.date_done > datetime.datetime.now() - datetime.timedelta(days=days):
-                prim_sum += 1 if set.importance == 1 else 0
-                sec_sum += 1 if set.importance == 2 else 0
-                tert_sum += 1 if set.importance == 3 else 0
+                prim_sum += 1 if set.importance == PRIMARY else 0
+                sec_sum += 1 if set.importance == SECONDARY else 0
+                tert_sum += 1 if set.importance == TERTIARY else 0
         return prim_sum, sec_sum, tert_sum
+    @property
+    def dates_done(self, days = FOUR_WEEKS):
+        result = []
+        for set in self.exercise_sets:
+            if set.date_done > datetime.datetime.now() - datetime.timedelta(days=days):
+                result.append(set.date_done.strftime("%d-%b-%Y"))
+        return result
+    
     
     def incrementSets(self, exercise_name, weight, reps, rir, importance, date = datetime.datetime.now()):
         self.exercise_sets.append(ExerciseSet(exercise_name, weight, reps, rir, importance, date))
@@ -84,7 +97,7 @@ class WorkoutProgram:
             for row in reader:
                 self.__muscles[row[0]] = MuscleGroup(row[0])
     
-    @property
+    @property # MuscleGroup objects.
     def muscles(self):
         return self.__muscles
     
@@ -105,30 +118,30 @@ class WorkoutProgram:
             primary_muscles, secondary_muscles, tertiary_muscles = prim_sec_tert
             for muscle in primary_muscles:
                 if muscle in self.muscles:
-                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, 1, date_done)
+                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, PRIMARY, date_done)
             for muscle in secondary_muscles:
                 if muscle in self.muscles:
-                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, 2, date_done)
+                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, SECONDARY, date_done)
             for muscle in tertiary_muscles:
                 if muscle in self.muscles:
-                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, 3, date_done)
+                    self.muscles[muscle].incrementSets(exercise_name, weight, reps, rir, TERTIARY, date_done)
                     
     @property
-    def all_muscles_sets(self):
+    def all_muscles_sets_amount(self):
+        result = {}
         for muscle in self.muscles.values():
-            print(f'{muscle.name}: {muscle.amount_sets_done}')
+            result[muscle.name] = muscle.amount_sets_done
+        return result
 
+    @property
+    def all_muscles_sets_dates(self):
+        result = {}
+        for muscle in self.muscles.values():
+            result[muscle.name] = muscle.dates_done
+        return result
 
 
 program = WorkoutProgram()
 program.doExerciseSet("deadlift", 20, 5, 1)
-print("all sets done:")
-print(program.all_muscles_sets)
-
-# program.doExerciseSet("deadlift", 20, 5, 1)
-# program.doExerciseSet("bench press", 20, 5, 1)
-# program.doExerciseSet("pronated pullups", 0, 12, 0)
-# program.doExerciseSet("pronated pullups", 0, 8, 1)
-# program.doExerciseSet("pronated pullups", 0, 7, 0)
-# print(program.muscles["glutes"].all_sets_attributes)
-# print(program.muscles["glutes"].amount_sets_done)
+print("all dates done:")
+print(program.all_muscles_sets_dates)
